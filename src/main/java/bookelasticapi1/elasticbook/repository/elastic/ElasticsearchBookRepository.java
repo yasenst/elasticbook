@@ -8,7 +8,7 @@ import org.springframework.data.elasticsearch.repository.ElasticsearchRepository
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface BookRepository extends ElasticsearchRepository<Book, String> {
+public interface ElasticsearchBookRepository extends ElasticsearchRepository<Book, String> {
     Page<Book> findByAuthor(String author, Pageable pageable);
     Page<Book> findByTitle(String title, Pageable pageable);
     Page<Book> findBySubject(String subject, Pageable pageable);
@@ -29,4 +29,16 @@ public interface BookRepository extends ElasticsearchRepository<Book, String> {
             "}\n" +
             "}")
     Page<Book> simpleMoreLikeThis(String bookId, Pageable pageable);
+
+
+    @Query("{\n" +
+            "    \"more_like_this\": {\n" +
+            "      \"like\": [\n" +
+            "        {\n" +
+            "          \"_id\": \"?0\"\n" +
+            "        }\n" +
+            "      ]\n" +
+            "    }\n" +
+            "  }")
+    Page<Book> moreLikeThisTest(String bookId, Pageable pageable);
 }

@@ -1,26 +1,28 @@
 package bookelasticapi1.elasticbook.service;
 
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import javax.annotation.PostConstruct;
 import bookelasticapi1.elasticbook.ElkException;
 import bookelasticapi1.elasticbook.model.elastic.Book;
-import bookelasticapi1.elasticbook.repository.elastic.BookRepository;
+import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchBookRepository;
 import bookelasticapi1.elasticbook.repository.sql.SqlBookRepository;
-import com.fasterxml.jackson.dataformat.csv.CsvMapper;
-import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import bookelasticapi1.elasticbook.util.CsvFileParser;
+import com.alibaba.fastjson.JSON;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.MoreLikeThisQueryBuilder;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,35 +44,26 @@ import static java.util.Objects.nonNull;
 @Slf4j
 public class BookService {
 
-    private static final int BULK_SIZE = 500;
+    @NonNull
+    private final ElasticsearchBookRepository esBookRepository;
 
     @NonNull
-    final BookRepository bookRepository;
-
-    @NonNull
-    final SqlBookRepository sqlBookRepository;
+    private final SqlBookRepository sqlBookRepository;
 
     @Autowired
-    final ElasticsearchOperations elasticsearchTemplate;
+    private final ElasticsearchOperations elasticsearchTemplate;
 
     @Autowired
-    final RestHighLevelClient client;
-
-    private final CsvMapper csvMapper = new CsvMapper();
-
-    private final CsvSchema schema = csvMapper
-            .typedSchemaFor(Book.class)
-            .withHeader()
-            .withColumnReordering(true);
+    private final RestHighLevelClient client;
 
     public Book findById(String bookId) {
-        return bookRepository.findById(bookId)
+        return esBookRepository.findById(bookId)
                 .orElseThrow(() -> new ElkException("Book with ID=" + bookId + " was not found!"));
     }
 
     //@PostConstruct
     public void populateMySQL() {
-        for (Book elasticBook : bookRepository.findAll()) {
+        for (Book elasticBook : esBookRepository.findAll()) {
             bookelasticapi1.elasticbook.model.sql.Book sqlBook = new bookelasticapi1.elasticbook.model.sql.Book();
             sqlBook.setId(elasticBook.getId());
             sqlBook.setAuthor(elasticBook.getAuthor());
@@ -82,50 +75,127 @@ public class BookService {
     }
 
     public Book save(Book book) {
-        return bookRepository.save(book);
+        return esBookRepository.save(book);
     }
 
     public void delete(Book book) {
-        bookRepository.delete(book);
+        esBookRepository.delete(book);
     }
 
     public Iterable<Book> findAll() {
-        return bookRepository.findAll();
+        return esBookRepository.findAll();
     }
 
     public Page<Book> findByAuthor(String author, Pageable pageable) {
-        return bookRepository.findByAuthor(author, pageable);
+        return esBookRepository.findByAuthor(author, pageable);
     }
 
     public Page<Book> findByTitle(String title, Pageable pageable) {
-        return bookRepository.findByTitle(title, pageable);
+        return esBookRepository.findByTitle(title, pageable);
     }
 
     public Page<Book> findBySubject(String subject, Pageable pageable) {
-        return bookRepository.findBySubject(subject, pageable);
+        return esBookRepository.findBySubject(subject, pageable);
     }
 
-    public SearchHits<Book> matchAllQuery() {
+    /** Returns 6 random books. */
+    public List<Book> getSampleBooks() throws IOException {
+        final String jsonQuery = "{\"function_score\": {\"boost\": \"5\",\"random_score\": {}, \"boost_mode\": \"multiply\"}}";
+        final QueryBuilder queryBuilder = QueryBuilders.wrapperQuery(jsonQuery);
+
+        final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(queryBuilder).size(6);
+
+        final SearchRequest searchRequest = new SearchRequest(Book.INDEX);
+        searchRequest.source(searchSourceBuilder);
+
+        final SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+        org.elasticsearch.search.SearchHit[] searchHits = response.getHits().getHits();
+
+        return Arrays.stream(searchHits)
+                .map(hit -> {
+                   final Book book = JSON.parseObject(hit.getSourceAsString(), Book.class);
+                   book.setId(hit.getId());
+                   return book;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /** Returns 6 random books. */
+    /*public List<SearchHit<Book>> getSampleBooks() {
+        final String jsonQuery = "{\"function_score\": {\"boost\": \"5\",\"random_score\": {}, \"boost_mode\": \"multiply\"}}";
+        final QueryBuilder queryBuilder = QueryBuilders.wrapperQuery(jsonQuery);
+
+        final NativeSearchQuery query = new NativeSearchQueryBuilder()
+                .withQuery(queryBuilder)
+                .withMaxResults(6)
+                .build();
+
+        return elasticsearchTemplate.search(query, Book.class).getSearchHits();
+    }*/
+
+    /** Returns 6 books, but they are the same with each request. */
+    public List<SearchHit<Book>> matchAllQuery() {
         NativeSearchQuery matchAllQuery = new NativeSearchQueryBuilder()
                 .withQuery(QueryBuilders.matchAllQuery())
                 .withMaxResults(6)
                 .build();
-        return elasticsearchTemplate.search(matchAllQuery, Book.class);
+
+        return elasticsearchTemplate.search(matchAllQuery, Book.class).getSearchHits();
     }
+
+    /** Return at most 6 'more like this' books */
+    public List<Book> moreLikeThis1(String bookId) throws IOException {
+        final Book book = findById(bookId);
+        final String jsonQuery = "{\"more_like_this\":{\"fields\":[\"title\",\"description\"],\"like\":[{\"_id\":\"" +
+                                            bookId + "\"}],\"min_term_freq\":1,\"max_query_terms\":2}}";
+        final QueryBuilder queryBuilder = QueryBuilders.wrapperQuery(jsonQuery);
+
+        final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.boolQuery()
+                .must(QueryBuilders.matchQuery("subject", book.getSubject()))
+                .must(queryBuilder)).size(6);
+
+        final SearchRequest searchRequest = new SearchRequest(Book.INDEX);
+        searchRequest.source(searchSourceBuilder);
+
+        final SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+
+        org.elasticsearch.search.SearchHit[] searchHits = response.getHits().getHits();
+        return Arrays.stream(searchHits)
+                .map(hit -> {
+                    final Book bookObj = JSON.parseObject(hit.getSourceAsString(), Book.class);
+                    bookObj.setId(hit.getId());
+                    return bookObj;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /*public SearchHits<Book> moreLikeThis2(String bookId) {
+        final Book book = findById(bookId);
+
+        NativeSearchQuery query = new NativeSearchQueryBuilder()
+                .withQuery(QueryBuilders.boolQuery()
+                        .must(QueryBuilders.matchQuery("subject", book.getSubject()))
+                        .should(QueryBuilders.multiMatchQuery(text, "title", "description")))
+                .withPageable(Pageable.unpaged())
+                .build();
+    }*/
 
     public List<SearchHit<Book>> moreLikeThis(String bookId) {
         final Book book = findById(bookId);
 
         final MoreLikeThisQueryBuilder queryBuilder = QueryBuilders
-                .moreLikeThisQuery(new String[] { "title", "subject", "description" },
-                                    new String[] { book.getTitle(), book.getSubject() },
+                .moreLikeThisQuery(new String[] { "title", "description" },
+                                    new String[] { book.getTitle(), book.getDescription() },
                                     new MoreLikeThisQueryBuilder.Item[]{new MoreLikeThisQueryBuilder.Item(Book.INDEX, bookId)})
                 .minTermFreq(1)
-                .minDocFreq(1)
-                .maxQueryTerms(12);
+                .maxQueryTerms(3);
 
         final NativeSearchQuery query = new NativeSearchQueryBuilder()
-                .withQuery(queryBuilder)
+                .withQuery(QueryBuilders.boolQuery()
+                        .must(QueryBuilders.matchQuery("subject", book.getSubject()))
+                        .must(queryBuilder))
                 .withPageable(Pageable.unpaged())
                 .build();
 
@@ -135,17 +205,17 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
-    public SearchHits<Book> multiMatchSearchQuery(String text, String subject) {
-        if (subject != null) {
-            return boolQuery(text, subject);
-        }
-        NativeSearchQuery query = new NativeSearchQueryBuilder()
+    public List<Book> multiMatchSearchQuery(String text) {
+        final NativeSearchQuery query = new NativeSearchQueryBuilder()
                 .withQuery(QueryBuilders.multiMatchQuery(text, "title", "description")
                         .type(MultiMatchQueryBuilder.Type.BEST_FIELDS))
                 .withPageable(Pageable.unpaged())
                 .build();
 
-        return elasticsearchTemplate.search(query, Book.class);
+        SearchHits<Book> searchHits = elasticsearchTemplate.search(query, Book.class);
+        return searchHits.stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList());
     }
 
     public SearchHits<Book> boolQuery(String text, String subject) {
@@ -191,56 +261,10 @@ public class BookService {
         return new CriteriaQuery(criteria);
     }
 
-    public void uploadFile(String csvFileName) {
-        log.info("loading file {} ...", csvFileName);
-        List<Book> csvData = parseFile(csvFileName);
-        log.info("{} entries loaded from CSV file", csvData.size());
-        storeData(csvData);
-        log.info("data loading finish");
+    public void indexData() {
+        final CsvFileParser<Book> bookCsvParser = new CsvFileParser<Book>(Book.class);
+        List<Book> csvData = bookCsvParser.parse("src/main/resources/static/books.csv");
+        esBookRepository.saveAll(csvData);
     }
 
-    List<Book> parseFile(String csvFileName) {
-        try {
-            return csvMapper
-                    .readerFor(Book.class)
-                    .with(schema)
-                    .<Book>readValues(new File(csvFileName))
-                    .readAll();
-        } catch (IOException e) {
-            throw new ElkException(e);
-        }
-    }
-
-    private void storeData(List<Book> cities) {
-        final AtomicInteger counter = new AtomicInteger();
-
-        final Collection<List<Book>> chunks = cities.stream()
-                .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / BULK_SIZE))
-                .values();
-        counter.set(0);
-        chunks.forEach(ch -> {
-            bookRepository.saveAll(ch);
-            log.info("bulk of cities stored [{}/{}] ...", counter.getAndIncrement(), chunks.size());
-        });
-    }
-
-    /*public Page<Book> simpleMoreLikeThis(String bookId) {
-        return bookRepository.simpleMoreLikeThis(bookId, Pageable.unpaged());
-    }*/
-
-    private void explainApiExample() {
-        /*try {
-
-
-            ExplainRequest request = new ExplainRequest(Book.INDEX, bookId);
-            request.query(queryBuilder1);
-
-            ExplainResponse explainResponse = client.explain(request, RequestOptions.DEFAULT);
-            Explanation explanation = explainResponse.getExplanation();
-            System.out.println();
-
-        } catch (IOException e) {
-            System.out.println(e);
-        }*/
-    }
 }

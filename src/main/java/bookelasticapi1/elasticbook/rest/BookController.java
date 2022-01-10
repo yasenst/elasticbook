@@ -1,5 +1,7 @@
 package bookelasticapi1.elasticbook.rest;
 
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import javax.websocket.server.PathParam;
 import bookelasticapi1.elasticbook.model.elastic.Book;
@@ -22,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import static org.springframework.http.HttpStatus.CREATED;
 
 @RestController
-@RequestMapping("/api/books")
+@RequestMapping("/api/es/books")
 @Slf4j
 public class BookController {
 
@@ -44,9 +46,29 @@ public class BookController {
         return bookService.findBySubject(subject, Pageable.ofSize(6));
     }
 
-    @GetMapping("/sample")
-    public SearchHits<Book> getSampleBooks() {
+    /*@GetMapping("/sample")
+    public List<SearchHit<Book>> getSampleBooks() {
         return bookService.matchAllQuery();
+    }*/
+
+    @GetMapping("/sample")
+    public List<Book> getSampleBooks() {
+        try {
+            return bookService.getSampleBooks();
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        return Collections.emptyList();
+    }
+
+    @GetMapping("/{id}/morelikethis")
+    public List<Book> moreLikeThis(@PathVariable String id) {
+        try {
+            return bookService.moreLikeThis1(id);
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        return Collections.emptyList();
     }
 
     @GetMapping("/{id}/similar")
@@ -54,9 +76,14 @@ public class BookController {
         return bookService.moreLikeThis(id);
     }
 
+    /*@GetMapping("/{id}/similar")
+    public Page<Book> getSimilarBooks(@PathVariable String id) {
+        return bookService.moreLikeThis(id);
+    }*/
+
     @GetMapping("/search")
-    public SearchHits<Book> searchQuery(@RequestParam String text, @RequestParam(required = false) String subject) {
-        return bookService.multiMatchSearchQuery(text, subject);
+    public List<Book> searchQuery(@RequestParam String text) {
+        return bookService.multiMatchSearchQuery(text);
     }
 
     @GetMapping
@@ -64,12 +91,6 @@ public class BookController {
                                    @PathParam("author") String author,
                                    @PathParam("subject") String subject) {
         return bookService.search(title, author, subject, Pageable.unpaged());
-    }
-
-    @PostMapping("/upload")
-    @ResponseStatus(code = CREATED)
-    public void uploadFile() {
-        bookService.uploadFile("C:\\Users\\Yasen\\Downloads\\elasticbook\\src\\main\\resources\\static\\books3.csv");
     }
 
     /*@GetMapping("/experiment/{id}")

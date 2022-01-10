@@ -52,15 +52,6 @@ public class User {
                     @JoinColumn(name = "book_id") })
     private Set<Book> books;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_courses",
-            joinColumns = {
-                    @JoinColumn(name = "user_id")
-            },
-            inverseJoinColumns = {
-                    @JoinColumn(name = "course_id") })
-    private Set<Course> courses;
-
     public void addBook(Book book) {
         books.add(book);
     }
