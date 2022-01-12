@@ -5,6 +5,7 @@ import bookelasticapi1.elasticbook.dto.LoginDto;
 import bookelasticapi1.elasticbook.dto.UserDto;
 import bookelasticapi1.elasticbook.model.AuthToken;
 import bookelasticapi1.elasticbook.model.sql.User;
+import bookelasticapi1.elasticbook.service.UserOwnedBooksIndexService;
 import bookelasticapi1.elasticbook.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -30,11 +31,14 @@ public class AuthenticationController {
 
     private final UserService userService;
 
+    private final UserOwnedBooksIndexService esUserService;
+
     @Autowired
-    public AuthenticationController(AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider, UserService userService) {
+    public AuthenticationController(AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider, UserService userService, UserOwnedBooksIndexService esUserService) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.userService = userService;
+        this.esUserService = esUserService;
     }
 
     @PostMapping(value = "/authenticate", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -58,7 +62,9 @@ public class AuthenticationController {
 
     @RequestMapping(value="/register", method = RequestMethod.POST)
     public User saveUser(@RequestBody UserDto user){
-        return userService.save(user);
+        final User newUser = userService.save(user);
+        esUserService.save(newUser);
+        return newUser;
     }
 
     @PreAuthorize("hasRole('USER')")

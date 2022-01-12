@@ -18,6 +18,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.MoreLikeThisQueryBuilder;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -121,19 +122,6 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
-    /** Returns 6 random books. */
-    /*public List<SearchHit<Book>> getSampleBooks() {
-        final String jsonQuery = "{\"function_score\": {\"boost\": \"5\",\"random_score\": {}, \"boost_mode\": \"multiply\"}}";
-        final QueryBuilder queryBuilder = QueryBuilders.wrapperQuery(jsonQuery);
-
-        final NativeSearchQuery query = new NativeSearchQueryBuilder()
-                .withQuery(queryBuilder)
-                .withMaxResults(6)
-                .build();
-
-        return elasticsearchTemplate.search(query, Book.class).getSearchHits();
-    }*/
-
     /** Returns 6 books, but they are the same with each request. */
     public List<SearchHit<Book>> matchAllQuery() {
         NativeSearchQuery matchAllQuery = new NativeSearchQueryBuilder()
@@ -145,7 +133,7 @@ public class BookService {
     }
 
     /** Return at most 6 'more like this' books */
-    public List<Book> moreLikeThis1(String bookId) throws IOException {
+    public List<Book> moreLikeThis(String bookId) throws IOException {
         final Book book = findById(bookId);
         final String jsonQuery = "{\"more_like_this\":{\"fields\":[\"title\",\"description\"],\"like\":[{\"_id\":\"" +
                                             bookId + "\"}],\"min_term_freq\":1,\"max_query_terms\":2}}";
@@ -171,18 +159,7 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
-    /*public SearchHits<Book> moreLikeThis2(String bookId) {
-        final Book book = findById(bookId);
-
-        NativeSearchQuery query = new NativeSearchQueryBuilder()
-                .withQuery(QueryBuilders.boolQuery()
-                        .must(QueryBuilders.matchQuery("subject", book.getSubject()))
-                        .should(QueryBuilders.multiMatchQuery(text, "title", "description")))
-                .withPageable(Pageable.unpaged())
-                .build();
-    }*/
-
-    public List<SearchHit<Book>> moreLikeThis(String bookId) {
+    public List<SearchHit<Book>> moreLikeThisOld(String bookId) {
         final Book book = findById(bookId);
 
         final MoreLikeThisQueryBuilder queryBuilder = QueryBuilders
@@ -205,10 +182,39 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
+    public List<Book> getRecommendationsBaseOnBookList(final List<String> bookIdList) throws IOException {
+        MoreLikeThisQueryBuilder.Item[] mltQueryItems = new MoreLikeThisQueryBuilder.Item[bookIdList.size()];
+        int mltQueryItemIndex = 0;
+        for (String bookId : bookIdList) {
+            mltQueryItems[mltQueryItemIndex++] =  new MoreLikeThisQueryBuilder.Item(Book.INDEX, bookId);
+        }
+
+        final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder
+                .query(QueryBuilders
+                        .moreLikeThisQuery(mltQueryItems)
+                        .minTermFreq(1)
+                        .maxQueryTerms(3))
+                .size(6);
+
+        final SearchRequest searchRequest = new SearchRequest(Book.INDEX);
+        searchRequest.source(searchSourceBuilder);
+
+        final SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+
+        return Arrays.stream(response.getHits().getHits())
+                .map(hit -> {
+                    final Book bookObj = JSON.parseObject(hit.getSourceAsString(), Book.class);
+                    bookObj.setId(hit.getId());
+                    return bookObj;
+                })
+                .collect(Collectors.toList());
+    }
+
     public List<Book> multiMatchSearchQuery(String text) {
         final NativeSearchQuery query = new NativeSearchQueryBuilder()
-                .withQuery(QueryBuilders.multiMatchQuery(text, "title", "description")
-                        .type(MultiMatchQueryBuilder.Type.BEST_FIELDS))
+                .withQuery(QueryBuilders.multiMatchQuery(text, "title", "description", "author")
+                        .type(MultiMatchQueryBuilder.Type.PHRASE_PREFIX))
                 .withPageable(Pageable.unpaged())
                 .build();
 
@@ -227,38 +233,6 @@ public class BookService {
                 .build();
 
         return elasticsearchTemplate.search(query, Book.class);
-    }
-
-    public SearchHits<Book> moreLikeThisTest(String description) {
-        MoreLikeThisQueryBuilder queryBuilder = QueryBuilders.moreLikeThisQuery(new String[] {"description"}, new String[] {description}, null);
-        NativeSearchQuery query = new NativeSearchQueryBuilder()
-                .withQuery(queryBuilder)
-                .withPageable(Pageable.unpaged())
-                .build();
-        return elasticsearchTemplate.search(query, Book.class);
-    }
-
-    public SearchHits<Book> search(String title, String author, String subject, Pageable pageable) {
-        IndexCoordinates index = IndexCoordinates.of(Book.INDEX);
-
-        CriteriaQuery query = buildSearchQuery(title, author, subject);
-        query.setPageable(pageable);
-
-        return elasticsearchTemplate.search(query, Book.class, index);
-    }
-
-    private CriteriaQuery buildSearchQuery(String title, String author, String subject) {
-        Criteria criteria = new Criteria();
-        if (nonNull(title)) {
-            criteria.and(new Criteria("title").contains(title));
-        }
-        if (nonNull(author)) {
-            criteria.and(new Criteria("author").expression(author));
-        }
-        if (nonNull(subject)) {
-            criteria.and(new Criteria("subject").is(subject));
-        }
-        return new CriteriaQuery(criteria);
     }
 
     public void indexData() {

@@ -1,5 +1,6 @@
 package bookelasticapi1.elasticbook.model.elastic;
 
+import java.io.Serializable;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,7 +14,7 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Course {
+public class Course implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

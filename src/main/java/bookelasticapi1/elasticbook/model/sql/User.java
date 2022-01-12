@@ -52,7 +52,11 @@ public class User {
                     @JoinColumn(name = "book_id") })
     private Set<Book> books;
 
-    public void addBook(Book book) {
+    public void addBook(final Book book) {
         books.add(book);
+    }
+
+    public boolean removeBook(final Book book) {
+        return books.remove(book);
     }
 }
