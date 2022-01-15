@@ -62,9 +62,8 @@ public class CourseService {
         searchRequest.source(searchSourceBuilder);
 
         final SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
-        org.elasticsearch.search.SearchHit[] searchHits = response.getHits().getHits();
 
-        return Arrays.stream(searchHits)
+        return Arrays.stream(response.getHits().getHits())
                 .map(hit -> {
                     final Course course = JSON.parseObject(hit.getSourceAsString(), Course.class);
                     course.setId(hit.getId());
@@ -73,7 +72,8 @@ public class CourseService {
                 .collect(Collectors.toList());
     }
 
-    public List<Book> getRecommendedBooksForCourse(String courseId) throws IOException {
+    /** Returns a list of books recommended for course with id=courseId. */
+    public List<Book> getRecommendedBooksForCourse(final String courseId) throws IOException {
         final Course course = findById(courseId);
 
         final MoreLikeThisQueryBuilder queryBuilder = QueryBuilders
@@ -84,17 +84,18 @@ public class CourseService {
                 .maxQueryTerms(2);
 
         final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.boolQuery()
-                .must(QueryBuilders.matchQuery("subject", course.getSubject()))
-                .must(queryBuilder)).size(6);
+        searchSourceBuilder
+                .query(QueryBuilders.boolQuery()
+                        .must(QueryBuilders.matchQuery("subject", course.getSubject()))
+                        .must(queryBuilder))
+                .size(6);
 
         final SearchRequest searchRequest = new SearchRequest(Book.INDEX);
         searchRequest.source(searchSourceBuilder);
 
         final SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
-        org.elasticsearch.search.SearchHit[] searchHits = response.getHits().getHits();
 
-        return Arrays.stream(searchHits)
+        return Arrays.stream(response.getHits().getHits())
                 .map(hit -> {
                     final Book book = JSON.parseObject(hit.getSourceAsString(), Book.class);
                     book.setId(hit.getId());
@@ -103,7 +104,8 @@ public class CourseService {
                 .collect(Collectors.toList());
     }
 
-    public List<Course> multiMatchSearchQuery(String text) {
+    /** Performs elasticsearch multi_match_query on the courses index. */
+    public List<Course> multiMatchSearchQuery(final String text) {
         final NativeSearchQuery query = new NativeSearchQueryBuilder()
                 .withQuery(QueryBuilders.multiMatchQuery(text, "title", "description")
                         .type(MultiMatchQueryBuilder.Type.BEST_FIELDS))

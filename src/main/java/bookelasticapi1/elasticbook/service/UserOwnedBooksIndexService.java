@@ -3,31 +3,29 @@ package bookelasticapi1.elasticbook.service;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import bookelasticapi1.elasticbook.model.elastic.UserOwnedBooks;
 import bookelasticapi1.elasticbook.model.sql.Book;
 import bookelasticapi1.elasticbook.model.sql.User;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticUserOwnedBooksRepository;
 import bookelasticapi1.elasticbook.repository.sql.SqlBookRepository;
+
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import org.elasticsearch.search.aggregations.bucket.global.Global;
-import org.elasticsearch.search.aggregations.bucket.filter.Filters;
 
 @Service
 @RequiredArgsConstructor
@@ -58,6 +56,7 @@ public class UserOwnedBooksIndexService {
         esUserOwnedBooksRepository.save(row);
     }
 
+    /** Returns list of books which owners of book with id=bookId also own. */
     public List<Book> getBooksOwnersAlsoLike(String bookId) throws IOException {
         String encodedBookId = bookId.replace(SPECIAL_SYMBOL, ENCODER_SYMBOL);
         String queryString = "{\"match\": {\"ownedBooks\": \"" + encodedBookId +  "\"}}";
@@ -82,7 +81,7 @@ public class UserOwnedBooksIndexService {
         List<String> keys = aggregation.getBuckets().stream()
                 .map(bucket -> bucket.getKeyAsString().replace(ENCODER_SYMBOL, SPECIAL_SYMBOL))
                 .collect(Collectors.toList());
-        keys.remove(bookId.toLowerCase()); // remove the book itself as it  is part of the aggregation
+        keys.remove(bookId.toLowerCase()); // remove the book itself as it is part of the aggregation
 
         return sqlBookRepository.findByIdIgnoreCase(keys);
     }

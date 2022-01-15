@@ -1,4 +1,4 @@
-package bookelasticapi1.elasticbook.service;
+package bookelasticapi1.elasticbook.service.base;
 
 import java.util.List;
 import java.util.Optional;

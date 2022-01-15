@@ -18,32 +18,26 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/es/books")
+@RequestMapping("/api/books")
 @Slf4j
 public class BookController {
 
     private final BookService bookService;
 
     @Autowired
-    public BookController(BookService bookService) {
+    public BookController(final BookService bookService) {
         this.bookService = bookService;
     }
 
-    @GetMapping("/{id}")
-    public Book getById(@PathVariable String id) {
-        final Book book = bookService.findById(id);
-        return book;
+    @GetMapping("/{bookId}")
+    public Book getById(@PathVariable final String bookId) {
+        return bookService.findById(bookId);
     }
 
-    @GetMapping("/subject/{subject}")
-    public Page<Book> getBySubject(@PathVariable String subject) {
+    @GetMapping("/subjects/{subject}")
+    public Page<Book> getBySubject(@PathVariable final String subject) {
         return bookService.findBySubject(subject, Pageable.ofSize(6));
     }
-
-    /*@GetMapping("/sample")
-    public List<SearchHit<Book>> getSampleBooks() {
-        return bookService.matchAllQuery();
-    }*/
 
     @GetMapping("/sample")
     public List<Book> getSampleBooks() {
@@ -55,10 +49,10 @@ public class BookController {
         return Collections.emptyList();
     }
 
-    @GetMapping("/{id}/morelikethis")
-    public List<Book> getMoreLikeThis(@PathVariable String id) {
+    @GetMapping("/{bookId}/morelikethis")
+    public List<Book> getMoreLikeThis(@PathVariable final String bookId) {
         try {
-            return bookService.moreLikeThis(id);
+            return bookService.moreLikeThis(bookId);
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }
@@ -66,14 +60,14 @@ public class BookController {
     }
 
     @GetMapping("/search")
-    public List<Book> searchQuery(@RequestParam String text) {
+    public List<Book> searchBooks(@RequestParam String text) {
         return bookService.multiMatchSearchQuery(text);
     }
 
-    @PostMapping("/recommendedlist")
-    public List<Book> getRecommendationsBaseOnBookList(@RequestBody final List<String> bookIdList) {
+    @PostMapping("/recommended")
+    public List<Book> getRecommendationsList(@RequestBody final List<String> bookIdList) {
         try {
-            return bookService.getRecommendationsBaseOnBookList(bookIdList);
+            return bookService.getRecommendationsList(bookIdList);
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }

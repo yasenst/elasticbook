@@ -1,8 +1,8 @@
-package bookelasticapi1.elasticbook.service.impl;
+package bookelasticapi1.elasticbook.service;
 
 import bookelasticapi1.elasticbook.model.sql.Role;
 import bookelasticapi1.elasticbook.repository.sql.RoleRepository;
-import bookelasticapi1.elasticbook.service.RoleService;
+import bookelasticapi1.elasticbook.service.base.RoleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

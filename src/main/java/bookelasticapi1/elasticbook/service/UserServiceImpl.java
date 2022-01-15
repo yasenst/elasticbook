@@ -1,19 +1,18 @@
-package bookelasticapi1.elasticbook.service.impl;
+package bookelasticapi1.elasticbook.service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import bookelasticapi1.elasticbook.dto.UserDto;
-import bookelasticapi1.elasticbook.model.sql.Book;
 import bookelasticapi1.elasticbook.model.sql.Role;
 import bookelasticapi1.elasticbook.model.sql.User;
 import bookelasticapi1.elasticbook.repository.sql.UserRepository;
-import bookelasticapi1.elasticbook.service.RoleService;
-import bookelasticapi1.elasticbook.service.UserService;
+import bookelasticapi1.elasticbook.service.base.RoleService;
+import bookelasticapi1.elasticbook.service.base.UserService;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 

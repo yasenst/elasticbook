@@ -5,40 +5,38 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import bookelasticapi1.elasticbook.ElkException;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchBookRepository;
 import bookelasticapi1.elasticbook.repository.sql.SqlBookRepository;
 import bookelasticapi1.elasticbook.util.CsvFileParser;
+
 import com.alibaba.fastjson.JSON;
+
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.MoreLikeThisQueryBuilder;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
-import org.springframework.data.elasticsearch.core.query.Criteria;
-import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
-
-
-import static java.util.Objects.nonNull;
 
 @Service
 @RequiredArgsConstructor
@@ -182,7 +180,8 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
-    public List<Book> getRecommendationsBaseOnBookList(final List<String> bookIdList) throws IOException {
+    /** Performs more_like_this query on the bookIdList and returns a list of similar books. */
+    public List<Book> getRecommendationsList(final List<String> bookIdList) throws IOException {
         MoreLikeThisQueryBuilder.Item[] mltQueryItems = new MoreLikeThisQueryBuilder.Item[bookIdList.size()];
         int mltQueryItemIndex = 0;
         for (String bookId : bookIdList) {
@@ -211,6 +210,7 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
+    /** Performs elasticsearch multi_match_query on the books index. */
     public List<Book> multiMatchSearchQuery(String text) {
         final NativeSearchQuery query = new NativeSearchQueryBuilder()
                 .withQuery(QueryBuilders.multiMatchQuery(text, "title", "description", "author")

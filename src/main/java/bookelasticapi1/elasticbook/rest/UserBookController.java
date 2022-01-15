@@ -2,9 +2,10 @@ package bookelasticapi1.elasticbook.rest;
 
 import java.util.List;
 import java.util.Set;
+
 import bookelasticapi1.elasticbook.model.sql.Book;
-import bookelasticapi1.elasticbook.service.UserBookService;
-import bookelasticapi1.elasticbook.service.UserOwnedBooksIndexService;
+import bookelasticapi1.elasticbook.service.base.UserBookService;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,7 +46,6 @@ public class UserBookController {
         userBookService.removeBookFromUser(username, bookId);
     }
 
-
     @PreAuthorize("hasRole('USER')")
     @PostMapping("/check-ownership")
     public boolean userOwnsBook(Authentication authentication, @RequestBody String bookId) {
@@ -53,7 +53,7 @@ public class UserBookController {
         return userBookService.userOwnsBook(username, bookId);
     }
 
-    @PostMapping("/owners-like")
+    @PostMapping("/recommended")
     public List<Book> getBooksOwnersAlsoLike(@RequestBody String bookId) {
         return userBookService.getBooksOwnersAlsoLike(bookId);
     }
