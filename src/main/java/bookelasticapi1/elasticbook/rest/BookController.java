@@ -39,6 +39,11 @@ public class BookController {
         return bookService.findBySubject(subject, Pageable.ofSize(6));
     }
 
+    @GetMapping("/subjects")
+    public String[] getSubjects() {
+        return bookService.getSubjects();
+    }
+
     @GetMapping("/sample")
     public List<Book> getSampleBooks() {
         try {

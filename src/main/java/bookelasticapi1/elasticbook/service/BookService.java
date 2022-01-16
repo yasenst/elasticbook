@@ -4,9 +4,11 @@ package bookelasticapi1.elasticbook.service;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import bookelasticapi1.elasticbook.ElkException;
+import bookelasticapi1.elasticbook.model.Subject;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchBookRepository;
 import bookelasticapi1.elasticbook.repository.sql.SqlBookRepository;
@@ -95,6 +97,10 @@ public class BookService {
 
     public Page<Book> findBySubject(String subject, Pageable pageable) {
         return esBookRepository.findBySubject(subject, pageable);
+    }
+
+    public String[] getSubjects() {
+        return Arrays.stream(Subject.values()).map(e -> e.value).toArray(String[]::new);
     }
 
     /** Returns 6 random books. */

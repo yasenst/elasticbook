@@ -10,4 +10,5 @@ public interface UserService {
     User save(User user);
     List<User> findAll();
     User findByUsername(String username);
+    boolean existsByUsername(String username);
 }
