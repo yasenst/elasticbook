@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import bookelasticapi1.elasticbook.ElkException;
+import bookelasticapi1.elasticbook.exception.ElkException;
+import bookelasticapi1.elasticbook.dto.CourseDto;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.model.elastic.Course;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchCourseRepository;
@@ -116,6 +117,21 @@ public class CourseService {
         return searchHits.stream()
                 .map(SearchHit::getContent)
                 .collect(Collectors.toList());
+    }
+
+    public Course save(final CourseDto courseDto) {
+        final Course newCourse = new Course();
+        newCourse.setTitle(courseDto.getTitle());
+        newCourse.setDescription(courseDto.getDescription());
+        newCourse.setSubject(courseDto.getSubject());
+
+        return esCourseRepository.save(newCourse);
+    }
+
+    public Course delete(final String courseId) {
+        final Course course = findById(courseId);
+        esCourseRepository.deleteById(courseId);
+        return course;
     }
 
     public void indexData() {

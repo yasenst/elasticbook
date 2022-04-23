@@ -1,4 +1,4 @@
-package bookelasticapi1.elasticbook;
+package bookelasticapi1.elasticbook.exception;
 
 public class ElkException extends RuntimeException {
 

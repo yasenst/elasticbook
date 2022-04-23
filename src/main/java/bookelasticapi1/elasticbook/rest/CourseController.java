@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import bookelasticapi1.elasticbook.dto.CourseDto;
+import bookelasticapi1.elasticbook.exception.ElkException;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.model.elastic.Course;
 import bookelasticapi1.elasticbook.service.CourseService;
@@ -11,8 +13,14 @@ import bookelasticapi1.elasticbook.service.CourseService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,32 +38,60 @@ public class CourseController {
     }
 
     @GetMapping("/{courseId}")
-    public Course getById(@PathVariable String courseId) {
-        return courseService.findById(courseId);
+    public ResponseEntity<Course> getById(@PathVariable String courseId) {
+        try {
+            final Course course = courseService.findById(courseId);
+            return new ResponseEntity<>(course, HttpStatus.OK);
+        } catch (ElkException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("")
+    public ResponseEntity<Course> createCourse(@RequestBody final CourseDto courseDto) {
+        final Course course = this.courseService.save(courseDto);
+        return new ResponseEntity<>(course, HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{courseId}")
+    public ResponseEntity<Course> deleteCourse(@PathVariable final String courseId) {
+        try {
+            final Course course = courseService.delete(courseId);
+            return new ResponseEntity<>(course, HttpStatus.OK);
+        } catch (ElkException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
     @GetMapping("/sample")
-    public List<Course> getSampleCourses() {
+    public ResponseEntity<List<Course>> getSampleCourses() {
         try {
-            return courseService.getSampleCourses();
+            final List<Course> courses = courseService.getSampleCourses();
+            return new ResponseEntity<>(courses, HttpStatus.OK);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return Collections.emptyList();
     }
 
     @GetMapping("/{courseId}/recommended")
-    public List<Book> getRecommendedBooks(@PathVariable String courseId) {
+    public ResponseEntity<List<Book>> getRecommendedBooks(@PathVariable String courseId) {
         try {
-            return courseService.getRecommendedBooksForCourse(courseId);
+            final List<Book> books = courseService.getRecommendedBooksForCourse(courseId);
+            return new ResponseEntity<>(books, HttpStatus.OK);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return Collections.emptyList();
     }
 
     @GetMapping("/search")
-    public List<Course> searchCourses(@RequestParam String text) {
-        return courseService.multiMatchSearchQuery(text);
+    public ResponseEntity<List<Course>> searchCourses(@RequestParam String text) {
+        final List<Course> courses = courseService.multiMatchSearchQuery(text);
+        return new ResponseEntity<>(courses, HttpStatus.OK);
     }
 }

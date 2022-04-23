@@ -50,7 +50,7 @@ public class UserBookServiceImpl implements UserBookService {
     }
 
     @Override
-    public void removeBookFromUser(final String username, final String bookId) {
+    public Book removeBookFromUser(final String username, final String bookId) {
         final User user = userService.findByUsername(username);
         final Book book = sqlBookRepository.getById(bookId);
 
@@ -58,6 +58,8 @@ public class UserBookServiceImpl implements UserBookService {
         userService.save(user);
 
         elasticsearchUserBooksService.removeBook(user.getId(), bookId);
+
+        return book;
     }
 
     @Override

@@ -4,10 +4,10 @@ package bookelasticapi1.elasticbook.service;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
-import bookelasticapi1.elasticbook.ElkException;
+import bookelasticapi1.elasticbook.exception.ElkException;
+import bookelasticapi1.elasticbook.dto.BookDto;
 import bookelasticapi1.elasticbook.model.Subject;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchBookRepository;
@@ -60,27 +60,6 @@ public class BookService {
     public Book findById(String bookId) {
         return esBookRepository.findById(bookId)
                 .orElseThrow(() -> new ElkException("Book with ID=" + bookId + " was not found!"));
-    }
-
-    //@PostConstruct
-    public void populateMySQL() {
-        for (Book elasticBook : esBookRepository.findAll()) {
-            bookelasticapi1.elasticbook.model.sql.Book sqlBook = new bookelasticapi1.elasticbook.model.sql.Book();
-            sqlBook.setId(elasticBook.getId());
-            sqlBook.setAuthor(elasticBook.getAuthor());
-            sqlBook.setTitle(elasticBook.getTitle());
-            sqlBook.setDescription(elasticBook.getDescription());
-            sqlBook.setSubject(elasticBook.getSubject());
-            sqlBookRepository.save(sqlBook);
-        }
-    }
-
-    public Book save(Book book) {
-        return esBookRepository.save(book);
-    }
-
-    public void delete(Book book) {
-        esBookRepository.delete(book);
     }
 
     public Iterable<Book> findAll() {
@@ -228,6 +207,63 @@ public class BookService {
         return searchHits.stream()
                 .map(SearchHit::getContent)
                 .collect(Collectors.toList());
+    }
+
+    //@PostConstruct
+    public void populateMySQL() {
+        for (Book elasticBook : esBookRepository.findAll()) {
+            bookelasticapi1.elasticbook.model.sql.Book sqlBook = new bookelasticapi1.elasticbook.model.sql.Book();
+            sqlBook.setId(elasticBook.getId());
+            sqlBook.setAuthor(elasticBook.getAuthor());
+            sqlBook.setTitle(elasticBook.getTitle());
+            sqlBook.setDescription(elasticBook.getDescription());
+            sqlBook.setSubject(elasticBook.getSubject());
+            sqlBookRepository.save(sqlBook);
+        }
+    }
+
+    public Book save(BookDto bookDto) {
+        final Book newBook = new Book();
+        newBook.setTitle(bookDto.getTitle());
+        newBook.setDescription(bookDto.getDescription());
+        newBook.setAuthor(bookDto.getAuthor());
+        newBook.setSubject(bookDto.getSubject());
+
+        final Book savedBook = esBookRepository.save(newBook);
+
+        bookelasticapi1.elasticbook.model.sql.Book sqlBook = new bookelasticapi1.elasticbook.model.sql.Book();
+        sqlBook.setId(savedBook.getId());
+        sqlBook.setAuthor(savedBook.getAuthor());
+        sqlBook.setTitle(savedBook.getTitle());
+        sqlBook.setDescription(savedBook.getDescription());
+        sqlBook.setSubject(savedBook.getSubject());
+        sqlBookRepository.save(sqlBook);
+
+        return savedBook;
+    }
+
+    /** Delete book by id - deletes both in sql and es server as the book has the same id everywhere. */
+    public Book delete(final String bookId) {
+        final Book esBook = findById(bookId);
+
+        esBookRepository.deleteById(bookId);
+        sqlBookRepository.deleteById(bookId);
+
+        return esBook;
+        /*final Book esBook = findById(bookId);
+        if (esBook != null) {
+            esBookRepository.deleteById(bookId);
+        } else {
+            return false;
+        }
+        sqlBookRepository.deleteById(bookId);
+        try {
+            final bookelasticapi1.elasticbook.model.sql.Book sqlBook = sqlBookRepository.getById(bookId);
+            sqlBookRepository.deleteById(bookId);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }*/
     }
 
     public SearchHits<Book> boolQuery(String text, String subject) {

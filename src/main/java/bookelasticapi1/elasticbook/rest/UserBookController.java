@@ -6,9 +6,13 @@ import java.util.Set;
 import bookelasticapi1.elasticbook.model.sql.Book;
 import bookelasticapi1.elasticbook.service.base.UserBookService;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,35 +30,39 @@ public class UserBookController {
 
     @PreAuthorize("hasRole('USER')")
     @GetMapping("")
-    public Set<Book> getBooksForUser(Authentication authentication) {
+    public ResponseEntity<Set<Book>> getBooksForUser(Authentication authentication) {
         String username = authentication.getName();
-        return userBookService.getBooksForUser(username);
+        Set<Book> books = userBookService.getBooksForUser(username);
+        return new ResponseEntity<>(books, HttpStatus.OK);
     }
 
 
     @PreAuthorize("hasRole('USER')")
-    @PostMapping("/add")
-    public Book addBookToUser(Authentication authentication, @RequestBody String bookId) {
+    @PostMapping("")
+    public ResponseEntity<Book> addBookToUser(Authentication authentication, @RequestBody String bookId) {
         String username = authentication.getName();
-        return userBookService.addBookToUser(username, bookId);
+        final Book book = userBookService.addBookToUser(username, bookId);
+        return new ResponseEntity<>(book, HttpStatus.OK);
     }
 
     @PreAuthorize("hasRole('USER')")
-    @PostMapping("/remove")
-    public void removeBookFromUser(Authentication authentication, @RequestBody String bookId) {
+    @DeleteMapping("/{bookId}")
+    public ResponseEntity<Book> removeBookFromUser(Authentication authentication, @PathVariable final String bookId) {
         String username = authentication.getName();
-        userBookService.removeBookFromUser(username, bookId);
+        final Book book = userBookService.removeBookFromUser(username, bookId);
+        return new ResponseEntity<>(book, HttpStatus.OK);
     }
 
     @PreAuthorize("hasRole('USER')")
-    @PostMapping("/check-ownership")
+    @PostMapping("/ownership")
     public boolean userOwnsBook(Authentication authentication, @RequestBody String bookId) {
         String username = authentication.getName();
         return userBookService.userOwnsBook(username, bookId);
     }
 
     @PostMapping("/recommended")
-    public List<Book> getBooksOwnersAlsoLike(@RequestBody String bookId) {
-        return userBookService.getBooksOwnersAlsoLike(bookId);
+    public ResponseEntity<List<Book>> getBooksOwnersAlsoLike(@RequestBody String bookId) {
+        final List<Book> books = userBookService.getBooksOwnersAlsoLike(bookId);
+        return new ResponseEntity<>(books, HttpStatus.OK);
     }
 }

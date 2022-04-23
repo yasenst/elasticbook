@@ -3,12 +3,18 @@ package bookelasticapi1.elasticbook.rest;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import bookelasticapi1.elasticbook.exception.ElkException;
+import bookelasticapi1.elasticbook.dto.BookDto;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.service.BookService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,8 +36,35 @@ public class BookController {
     }
 
     @GetMapping("/{bookId}")
-    public Book getById(@PathVariable final String bookId) {
-        return bookService.findById(bookId);
+    public ResponseEntity<Book> getById(@PathVariable final String bookId) {
+        try {
+            final Book book = bookService.findById(bookId);
+            return new ResponseEntity<>(book, HttpStatus.OK);
+        } catch (ElkException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("")
+    public ResponseEntity<Book> createBook(@RequestBody final BookDto bookDto) {
+        final Book book = this.bookService.save(bookDto);
+        return new ResponseEntity<>(book, HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{bookId}")
+    public ResponseEntity<Book> deleteBook(@PathVariable final String bookId) {
+        try {
+            final Book book = this.bookService.delete(bookId);
+            return new ResponseEntity<>(book, HttpStatus.OK);
+        } catch (ElkException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
     @GetMapping("/subjects/{subject}")
@@ -45,37 +78,38 @@ public class BookController {
     }
 
     @GetMapping("/sample")
-    public List<Book> getSampleBooks() {
+    public ResponseEntity<List<Book>> getSampleBooks() {
         try {
-            return bookService.getSampleBooks();
+            final List<Book> books = bookService.getSampleBooks();
+            return new ResponseEntity<>(books, HttpStatus.OK);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return Collections.emptyList();
     }
 
-    @GetMapping("/{bookId}/morelikethis")
-    public List<Book> getMoreLikeThis(@PathVariable final String bookId) {
+    @GetMapping("/{bookId}/more")
+    public ResponseEntity<List<Book>> getMoreLikeThis(@PathVariable final String bookId) {
         try {
-            return bookService.moreLikeThis(bookId);
+            final List<Book> books = bookService.moreLikeThis(bookId);
+            return new ResponseEntity<>(books, HttpStatus.OK);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return Collections.emptyList();
     }
 
     @GetMapping("/search")
-    public List<Book> searchBooks(@RequestParam String text) {
-        return bookService.multiMatchSearchQuery(text);
+    public ResponseEntity<List<Book>> searchBooks(@RequestParam String text) {
+        final List<Book> books = bookService.multiMatchSearchQuery(text);
+        return new ResponseEntity<>(books, HttpStatus.OK);
     }
 
     @PostMapping("/recommended")
-    public List<Book> getRecommendationsList(@RequestBody final List<String> bookIdList) {
+    public ResponseEntity<List<Book>> getRecommendationsList(@RequestBody final List<String> bookIdList) {
         try {
-            return bookService.getRecommendationsList(bookIdList);
+            final List<Book> books = bookService.getRecommendationsList(bookIdList);
+            return new ResponseEntity<>(books, HttpStatus.OK);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return Collections.emptyList();
     }
 }

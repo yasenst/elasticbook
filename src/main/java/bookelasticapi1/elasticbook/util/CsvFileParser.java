@@ -3,7 +3,7 @@ package bookelasticapi1.elasticbook.util;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import bookelasticapi1.elasticbook.ElkException;
+import bookelasticapi1.elasticbook.exception.ElkException;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
