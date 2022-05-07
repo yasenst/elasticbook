@@ -1,4 +1,4 @@
-package bookelasticapi1.elasticbook.service;
+package bookelasticapi1.elasticbook.service.sql;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+/** Contains logic concerning user security */
 @Service("userDetailsService")
 public class UserDetailsServiceImpl implements UserDetailsService {
 

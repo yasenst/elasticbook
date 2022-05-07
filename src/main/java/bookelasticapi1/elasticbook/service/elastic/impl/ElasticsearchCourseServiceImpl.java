@@ -1,18 +1,19 @@
-package bookelasticapi1.elasticbook.service;
+package bookelasticapi1.elasticbook.service.elastic.impl;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.PostConstruct;
 import bookelasticapi1.elasticbook.exception.ElkException;
 import bookelasticapi1.elasticbook.dto.CourseDto;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.model.elastic.Course;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchCourseRepository;
+import bookelasticapi1.elasticbook.service.elastic.ElasticsearchCourseService;
 import bookelasticapi1.elasticbook.util.CsvFileParser;
 import com.alibaba.fastjson.JSON;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -33,18 +34,23 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilde
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
-public class CourseService {
+public class ElasticsearchCourseServiceImpl implements ElasticsearchCourseService {
 
-    @NonNull
     private final ElasticsearchCourseRepository esCourseRepository;
 
-    @Autowired
     private final ElasticsearchOperations elasticsearchTemplate;
 
-    @Autowired
     private final RestHighLevelClient client;
+
+    @Autowired
+    public ElasticsearchCourseServiceImpl(final ElasticsearchCourseRepository esCourseRepository,
+                                          final ElasticsearchOperations elasticsearchTemplate,
+                                          final RestHighLevelClient client) {
+        this.esCourseRepository = esCourseRepository;
+        this.elasticsearchTemplate = elasticsearchTemplate;
+        this.client = client;
+    }
 
     public Course findById(String courseId) {
         return esCourseRepository.findById(courseId)

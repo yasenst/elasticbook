@@ -1,4 +1,4 @@
-package bookelasticapi1.elasticbook.service.base;
+package bookelasticapi1.elasticbook.service.sql;
 
 import bookelasticapi1.elasticbook.model.sql.Role;
 

@@ -18,7 +18,7 @@ public class Book implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    public static final String INDEX = "book";
+    public static final String INDEX = "books";
 
     @Id
     private String id;
@@ -28,6 +28,7 @@ public class Book implements Serializable {
     private String title;
 
     @JsonProperty("description")
+    @Field(type = FieldType.Text, fielddata = true)
     private String description;
 
     @JsonProperty("author")

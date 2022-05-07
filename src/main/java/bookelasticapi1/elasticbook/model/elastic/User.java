@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import bookelasticapi1.elasticbook.model.sql.User;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,44 +16,45 @@ import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
-@Document(indexName = UserOwnedBooks.INDEX)
+@Document(indexName = User.INDEX)
 @Data
 @AllArgsConstructor
 @Getter
 @Setter
-public class UserOwnedBooks implements Serializable {
+public class User implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public static final String INDEX = "user-owned-books";
+    public static final String INDEX = "users";
 
-    public UserOwnedBooks() {
-        ownedBooks = new HashSet<>();
+    public User() {
+        booksOwned = new ArrayList<>();
     }
 
-    public UserOwnedBooks(final String userId, final String username) {
+    public User(final String userId, final String username) {
         this.userId = userId;
         this.username = username;
-        ownedBooks = new HashSet<>();
+        booksOwned = new ArrayList<>();
     }
 
     @Id
     private String id;
 
-    @JsonProperty("user_id")
+    @JsonProperty("userId")
+    @Field(name = "user_id")
     private String userId;
 
     @JsonProperty("username")
     private String username;
 
-    @JsonProperty("owned_books")
-    @Field(type = FieldType.Text, fielddata = true)
-    private Set<String> ownedBooks;
+    @JsonProperty("booksOwned")
+    @Field(name = "books_owned", type = FieldType.Keyword)
+    private List<String> booksOwned;
 
-    public void addBook(String bookId) {
-        ownedBooks.add(bookId);
+    public void addBook(String bookTitle) {
+        booksOwned.add(bookTitle);
     }
 
-    public void removeBook(String bookId) {
-        ownedBooks.remove(bookId);
+    public void removeBook(String bookTitle) {
+        booksOwned.remove(bookTitle);
     }
 }

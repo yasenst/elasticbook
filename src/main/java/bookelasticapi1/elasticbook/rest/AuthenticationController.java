@@ -8,8 +8,8 @@ import bookelasticapi1.elasticbook.dto.LoginDto;
 import bookelasticapi1.elasticbook.dto.UserDto;
 import bookelasticapi1.elasticbook.model.sql.Role;
 import bookelasticapi1.elasticbook.model.sql.User;
-import bookelasticapi1.elasticbook.service.UserOwnedBooksIndexService;
-import bookelasticapi1.elasticbook.service.base.UserService;
+import bookelasticapi1.elasticbook.service.elastic.ElasticsearchUserService;
+import bookelasticapi1.elasticbook.service.sql.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,13 +32,13 @@ public class AuthenticationController {
 
     private final UserService userService;
 
-    private final UserOwnedBooksIndexService elasticsearchUserService;
+    private final ElasticsearchUserService elasticsearchUserService;
 
     @Autowired
     public AuthenticationController(final AuthenticationManager authenticationManager,
                                     final JwtTokenProvider jwtTokenProvider,
                                     final UserService userService,
-                                    final UserOwnedBooksIndexService elasticsearchUserService) {
+                                    final ElasticsearchUserService elasticsearchUserService) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.userService = userService;
@@ -71,7 +71,8 @@ public class AuthenticationController {
 
     @PostMapping("/register")
     public ResponseEntity<?> saveUser(@RequestBody UserDto user) {
-        if (userService.existsByUsername(user.getUsername())) {
+        final String username = user.getUsername();
+        if (userService.existsByUsername(username)) {
             return ResponseEntity
                     .badRequest()
                     .body("Error: Username is already taken!");

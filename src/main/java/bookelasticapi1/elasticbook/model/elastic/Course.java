@@ -18,7 +18,7 @@ public class Course implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    public static final String INDEX = "course";
+    public static final String INDEX = "courses";
 
     @Id
     private String id;
@@ -28,6 +28,7 @@ public class Course implements Serializable {
     private String title;
 
     @JsonProperty("description")
+    @Field(type = FieldType.Text, fielddata = true)
     private String description;
 
     @JsonProperty("subject")

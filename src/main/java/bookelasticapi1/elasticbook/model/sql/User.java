@@ -1,5 +1,7 @@
 package bookelasticapi1.elasticbook.model.sql;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -52,11 +54,19 @@ public class User {
                     @JoinColumn(name = "book_id") })
     private Set<Book> books;
 
-    public void addBook(final Book book) {
-        books.add(book);
+    public Set<Book> getBooks() {
+        return Collections.unmodifiableSet(this.books);
+    }
+
+    public boolean addBook(final Book book) {
+        return books.add(book);
     }
 
     public boolean removeBook(final Book book) {
         return books.remove(book);
+    }
+
+    public boolean hasBook(Book book) {
+        return this.books.contains(book);
     }
 }

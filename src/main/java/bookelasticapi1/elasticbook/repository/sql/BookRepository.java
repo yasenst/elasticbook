@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface SqlBookRepository extends JpaRepository<Book, String> {
+public interface BookRepository extends JpaRepository<Book, String> {
     @Query("select book from Book book where lower(id) in :bookIds")
     List<Book> findByIdIgnoreCase(List<String> bookIds);
+
+
 }

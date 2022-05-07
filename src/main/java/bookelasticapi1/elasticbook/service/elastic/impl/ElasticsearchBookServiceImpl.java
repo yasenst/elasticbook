@@ -1,23 +1,26 @@
-package bookelasticapi1.elasticbook.service;
+package bookelasticapi1.elasticbook.service.elastic.impl;
 
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 import bookelasticapi1.elasticbook.exception.ElkException;
 import bookelasticapi1.elasticbook.dto.BookDto;
 import bookelasticapi1.elasticbook.model.Subject;
 import bookelasticapi1.elasticbook.model.elastic.Book;
+import bookelasticapi1.elasticbook.model.elastic.User;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchBookRepository;
-import bookelasticapi1.elasticbook.repository.sql.SqlBookRepository;
+import bookelasticapi1.elasticbook.repository.sql.BookRepository;
+import bookelasticapi1.elasticbook.service.elastic.ElasticsearchBookService;
 import bookelasticapi1.elasticbook.util.CsvFileParser;
 
 import com.alibaba.fastjson.JSON;
 
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.elasticsearch.action.search.SearchRequest;
@@ -28,6 +31,8 @@ import org.elasticsearch.index.query.MoreLikeThisQueryBuilder;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.bucket.terms.ParsedSignificantStringTerms;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,25 +46,31 @@ import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilde
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
-public class BookService {
+public class ElasticsearchBookServiceImpl implements ElasticsearchBookService {
 
-    @NonNull
     private final ElasticsearchBookRepository esBookRepository;
 
-    @NonNull
-    private final SqlBookRepository sqlBookRepository;
+    private final BookRepository sqlBookRepository;
 
-    @Autowired
     private final ElasticsearchOperations elasticsearchTemplate;
 
-    @Autowired
     private final RestHighLevelClient client;
+
+    @Autowired
+    public ElasticsearchBookServiceImpl(final @NonNull ElasticsearchBookRepository esBookRepository,
+                                        final @NonNull BookRepository sqlBookRepository,
+                                        final ElasticsearchOperations elasticsearchTemplate,
+                                        final RestHighLevelClient client) {
+        this.esBookRepository = esBookRepository;
+        this.sqlBookRepository = sqlBookRepository;
+        this.elasticsearchTemplate = elasticsearchTemplate;
+        this.client = client;
+    }
 
     public Book findById(String bookId) {
         return esBookRepository.findById(bookId)
-                .orElseThrow(() -> new ElkException("Book with ID=" + bookId + " was not found!"));
+                .orElseThrow(() -> new ElkException("Book with ID=" + bookId + " was not found in the index!"));
     }
 
     public Iterable<Book> findAll() {
@@ -105,16 +116,6 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
-    /** Returns 6 books, but they are the same with each request. */
-    public List<SearchHit<Book>> matchAllQuery() {
-        NativeSearchQuery matchAllQuery = new NativeSearchQueryBuilder()
-                .withQuery(QueryBuilders.matchAllQuery())
-                .withMaxResults(6)
-                .build();
-
-        return elasticsearchTemplate.search(matchAllQuery, Book.class).getSearchHits();
-    }
-
     /** Return at most 6 'more like this' books */
     public List<Book> moreLikeThis(String bookId) throws IOException {
         final Book book = findById(bookId);
@@ -139,29 +140,6 @@ public class BookService {
                     bookObj.setId(hit.getId());
                     return bookObj;
                 })
-                .collect(Collectors.toList());
-    }
-
-    public List<SearchHit<Book>> moreLikeThisOld(String bookId) {
-        final Book book = findById(bookId);
-
-        final MoreLikeThisQueryBuilder queryBuilder = QueryBuilders
-                .moreLikeThisQuery(new String[] { "title", "description" },
-                                    new String[] { book.getTitle(), book.getDescription() },
-                                    new MoreLikeThisQueryBuilder.Item[]{new MoreLikeThisQueryBuilder.Item(Book.INDEX, bookId)})
-                .minTermFreq(1)
-                .maxQueryTerms(3);
-
-        final NativeSearchQuery query = new NativeSearchQueryBuilder()
-                .withQuery(QueryBuilders.boolQuery()
-                        .must(QueryBuilders.matchQuery("subject", book.getSubject()))
-                        .must(queryBuilder))
-                .withPageable(Pageable.unpaged())
-                .build();
-
-        SearchHits<Book> searchHits = elasticsearchTemplate.search(query, Book.class);
-        return searchHits.stream()
-                .filter(searchHit -> (searchHit.getScore() > searchHits.getMaxScore()*0.5))
                 .collect(Collectors.toList());
     }
 
@@ -195,6 +173,50 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<Book> getBooksOwnersAlsoLike(String bookId) throws IOException {
+        Book book = findById(bookId);
+        String queryString = "{\"match\": {\"books_owned\": \"" + book.getTitle() +  "\"}}";
+        final QueryBuilder queryBuilder = QueryBuilders.wrapperQuery(queryString);
+
+        final String aggregationName = "users_who_like_this_also_like";
+        final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder
+                .query(queryBuilder)
+                .aggregation(AggregationBuilders
+                        .significantTerms(aggregationName)
+                        .field("books_owned")
+                        .minDocCount(1));
+
+        final SearchRequest searchRequest = new SearchRequest(User.INDEX);
+        searchRequest.source(searchSourceBuilder);
+
+        final SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+
+        ParsedSignificantStringTerms aggregation = response.getAggregations().get(aggregationName); // used for agg with significant terms
+        //ParsedStringTerms aggregation = response.getAggregations().get(aggregationName);
+
+        if (aggregation.getBuckets().size() < 1) {
+            return Collections.emptyList();
+        }
+
+        double max = aggregation.getBuckets().stream()
+                .mapToDouble(bucket -> bucket.getSignificanceScore())
+                .max().orElseThrow(NoSuchElementException::new);
+
+        List<String> keys = aggregation.getBuckets().stream()
+                .filter(bucket -> bucket.getSignificanceScore() >= max)
+                .map(bucket -> bucket.getKeyAsString())
+                .collect(Collectors.toList());
+
+        keys.remove(book.getTitle()); // remove current book
+
+        //aggregation.getBuckets().stream().forEach(bucket -> System.out.println(bucket.getKeyAsString() + " " + bucket.getSignificanceScore()));
+        //aggregation.getBuckets().stream().forEach(bucket -> System.out.println(bucket.getKeyAsString()));
+
+        return esBookRepository.getBooksByTitleIsIn(keys);
+    }
+
     /** Performs elasticsearch multi_match_query on the books index. */
     public List<Book> multiMatchSearchQuery(String text) {
         final NativeSearchQuery query = new NativeSearchQueryBuilder()
@@ -209,7 +231,35 @@ public class BookService {
                 .collect(Collectors.toList());
     }
 
-    //@PostConstruct
+    public Book save(BookDto bookDto) {
+        final Book newBook = new Book();
+        newBook.setTitle(bookDto.getTitle());
+        newBook.setDescription(bookDto.getDescription());
+        newBook.setAuthor(bookDto.getAuthor());
+        newBook.setSubject(bookDto.getSubject());
+
+        final Book savedBook = esBookRepository.save(newBook);
+
+        /*bookelasticapi1.elasticbook.model.sql.Book sqlBook = new bookelasticapi1.elasticbook.model.sql.Book();
+        sqlBook.setId(savedBook.getId());
+        sqlBook.setAuthor(savedBook.getAuthor());
+        sqlBook.setTitle(savedBook.getTitle());
+        sqlBook.setDescription(savedBook.getDescription());
+        sqlBook.setSubject(savedBook.getSubject());
+        sqlBookRepository.save(sqlBook);*/
+
+        return savedBook;
+    }
+
+    public Book delete(final String bookId) {
+        final Book esBook = findById(bookId);
+
+        esBookRepository.deleteById(bookId);
+        //sqlBookRepository.deleteById(bookId);
+
+        return esBook;
+    }
+
     public void populateMySQL() {
         for (Book elasticBook : esBookRepository.findAll()) {
             bookelasticapi1.elasticbook.model.sql.Book sqlBook = new bookelasticapi1.elasticbook.model.sql.Book();
@@ -220,61 +270,6 @@ public class BookService {
             sqlBook.setSubject(elasticBook.getSubject());
             sqlBookRepository.save(sqlBook);
         }
-    }
-
-    public Book save(BookDto bookDto) {
-        final Book newBook = new Book();
-        newBook.setTitle(bookDto.getTitle());
-        newBook.setDescription(bookDto.getDescription());
-        newBook.setAuthor(bookDto.getAuthor());
-        newBook.setSubject(bookDto.getSubject());
-
-        final Book savedBook = esBookRepository.save(newBook);
-
-        bookelasticapi1.elasticbook.model.sql.Book sqlBook = new bookelasticapi1.elasticbook.model.sql.Book();
-        sqlBook.setId(savedBook.getId());
-        sqlBook.setAuthor(savedBook.getAuthor());
-        sqlBook.setTitle(savedBook.getTitle());
-        sqlBook.setDescription(savedBook.getDescription());
-        sqlBook.setSubject(savedBook.getSubject());
-        sqlBookRepository.save(sqlBook);
-
-        return savedBook;
-    }
-
-    /** Delete book by id - deletes both in sql and es server as the book has the same id everywhere. */
-    public Book delete(final String bookId) {
-        final Book esBook = findById(bookId);
-
-        esBookRepository.deleteById(bookId);
-        sqlBookRepository.deleteById(bookId);
-
-        return esBook;
-        /*final Book esBook = findById(bookId);
-        if (esBook != null) {
-            esBookRepository.deleteById(bookId);
-        } else {
-            return false;
-        }
-        sqlBookRepository.deleteById(bookId);
-        try {
-            final bookelasticapi1.elasticbook.model.sql.Book sqlBook = sqlBookRepository.getById(bookId);
-            sqlBookRepository.deleteById(bookId);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }*/
-    }
-
-    public SearchHits<Book> boolQuery(String text, String subject) {
-        NativeSearchQuery query = new NativeSearchQueryBuilder()
-                .withQuery(QueryBuilders.boolQuery()
-                                        .must(QueryBuilders.matchQuery("subject", subject))
-                                        .should(QueryBuilders.multiMatchQuery(text, "title", "description")))
-                .withPageable(Pageable.unpaged())
-                .build();
-
-        return elasticsearchTemplate.search(query, Book.class);
     }
 
     public void indexData() {

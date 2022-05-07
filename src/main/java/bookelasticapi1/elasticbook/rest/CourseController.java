@@ -1,14 +1,13 @@
 package bookelasticapi1.elasticbook.rest;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import bookelasticapi1.elasticbook.dto.CourseDto;
 import bookelasticapi1.elasticbook.exception.ElkException;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.model.elastic.Course;
-import bookelasticapi1.elasticbook.service.CourseService;
+import bookelasticapi1.elasticbook.service.elastic.ElasticsearchCourseService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,17 +29,17 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class CourseController {
 
-    private final CourseService courseService;
+    private final ElasticsearchCourseService elasticsearchCourseService;
 
     @Autowired
-    public CourseController(CourseService courseService) {
-        this.courseService = courseService;
+    public CourseController(ElasticsearchCourseService elasticsearchCourseService) {
+        this.elasticsearchCourseService = elasticsearchCourseService;
     }
 
     @GetMapping("/{courseId}")
     public ResponseEntity<Course> getById(@PathVariable String courseId) {
         try {
-            final Course course = courseService.findById(courseId);
+            final Course course = elasticsearchCourseService.findById(courseId);
             return new ResponseEntity<>(course, HttpStatus.OK);
         } catch (ElkException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -52,7 +51,7 @@ public class CourseController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("")
     public ResponseEntity<Course> createCourse(@RequestBody final CourseDto courseDto) {
-        final Course course = this.courseService.save(courseDto);
+        final Course course = this.elasticsearchCourseService.save(courseDto);
         return new ResponseEntity<>(course, HttpStatus.CREATED);
     }
 
@@ -60,7 +59,7 @@ public class CourseController {
     @DeleteMapping("/{courseId}")
     public ResponseEntity<Course> deleteCourse(@PathVariable final String courseId) {
         try {
-            final Course course = courseService.delete(courseId);
+            final Course course = elasticsearchCourseService.delete(courseId);
             return new ResponseEntity<>(course, HttpStatus.OK);
         } catch (ElkException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -72,7 +71,7 @@ public class CourseController {
     @GetMapping("/sample")
     public ResponseEntity<List<Course>> getSampleCourses() {
         try {
-            final List<Course> courses = courseService.getSampleCourses();
+            final List<Course> courses = elasticsearchCourseService.getSampleCourses();
             return new ResponseEntity<>(courses, HttpStatus.OK);
         } catch (IOException ioe) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -82,7 +81,7 @@ public class CourseController {
     @GetMapping("/{courseId}/recommended")
     public ResponseEntity<List<Book>> getRecommendedBooks(@PathVariable String courseId) {
         try {
-            final List<Book> books = courseService.getRecommendedBooksForCourse(courseId);
+            final List<Book> books = elasticsearchCourseService.getRecommendedBooksForCourse(courseId);
             return new ResponseEntity<>(books, HttpStatus.OK);
         } catch (IOException ioe) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -91,7 +90,7 @@ public class CourseController {
 
     @GetMapping("/search")
     public ResponseEntity<List<Course>> searchCourses(@RequestParam String text) {
-        final List<Course> courses = courseService.multiMatchSearchQuery(text);
+        final List<Course> courses = elasticsearchCourseService.multiMatchSearchQuery(text);
         return new ResponseEntity<>(courses, HttpStatus.OK);
     }
 }

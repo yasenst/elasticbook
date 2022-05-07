@@ -1,5 +1,6 @@
 package bookelasticapi1.elasticbook.repository.elastic;
 
+import java.util.List;
 import bookelasticapi1.elasticbook.model.elastic.Book;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +13,7 @@ public interface ElasticsearchBookRepository extends ElasticsearchRepository<Boo
     Page<Book> findByAuthor(String author, Pageable pageable);
     Page<Book> findByTitle(String title, Pageable pageable);
     Page<Book> findBySubject(String subject, Pageable pageable);
+    List<Book> getBooksByTitleIsIn(List<String> titles);
 
     @Query("{\n" +
             "\"more_like_this\": {\n" +
