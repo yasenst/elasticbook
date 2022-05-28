@@ -11,9 +11,7 @@ import bookelasticapi1.elasticbook.model.elastic.Book;
 import bookelasticapi1.elasticbook.model.elastic.Course;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchCourseRepository;
 import bookelasticapi1.elasticbook.service.elastic.ElasticsearchCourseService;
-import bookelasticapi1.elasticbook.util.CsvFileParser;
 import com.alibaba.fastjson.JSON;
-import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -25,10 +23,8 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.SearchHit;
-import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
@@ -39,22 +35,23 @@ public class ElasticsearchCourseServiceImpl implements ElasticsearchCourseServic
 
     private final ElasticsearchCourseRepository esCourseRepository;
 
-    private final ElasticsearchOperations elasticsearchTemplate;
-
     private final RestHighLevelClient client;
 
     @Autowired
     public ElasticsearchCourseServiceImpl(final ElasticsearchCourseRepository esCourseRepository,
-                                          final ElasticsearchOperations elasticsearchTemplate,
                                           final RestHighLevelClient client) {
         this.esCourseRepository = esCourseRepository;
-        this.elasticsearchTemplate = elasticsearchTemplate;
         this.client = client;
     }
 
     public Course findById(String courseId) {
         return esCourseRepository.findById(courseId)
                 .orElseThrow(() -> new ElkException("Course with ID=" + courseId + " was not found!"));
+    }
+
+    @Override
+    public Page<Course> findAll(Pageable pageable) {
+        return esCourseRepository.findAll(pageable);
     }
 
     /** Returns 3 random courses. */
@@ -112,16 +109,30 @@ public class ElasticsearchCourseServiceImpl implements ElasticsearchCourseServic
     }
 
     /** Performs elasticsearch multi_match_query on the courses index. */
-    public List<Course> multiMatchSearchQuery(final String text) {
+    public List<Course> multiMatchSearchQuery(final String text) throws IOException {
         final NativeSearchQuery query = new NativeSearchQueryBuilder()
                 .withQuery(QueryBuilders.multiMatchQuery(text, "title", "description")
                         .type(MultiMatchQueryBuilder.Type.BEST_FIELDS))
                 .withPageable(Pageable.unpaged())
                 .build();
 
-        SearchHits<Course> searchHits = elasticsearchTemplate.search(query, Course.class);
-        return searchHits.stream()
-                .map(SearchHit::getContent)
+        final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder
+                .query(QueryBuilders.multiMatchQuery(text, "title", "description")
+                                .type(MultiMatchQueryBuilder.Type.PHRASE_PREFIX));
+
+        final SearchRequest searchRequest = new SearchRequest(Course.INDEX);
+        searchRequest.source(searchSourceBuilder);
+
+        final SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+        org.elasticsearch.search.SearchHit[] searchHits = response.getHits().getHits();
+
+        return Arrays.stream(searchHits)
+                .map(hit -> {
+                    final Course course = JSON.parseObject(hit.getSourceAsString(), Course.class);
+                    course.setId(hit.getId());
+                    return course;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -138,11 +149,5 @@ public class ElasticsearchCourseServiceImpl implements ElasticsearchCourseServic
         final Course course = findById(courseId);
         esCourseRepository.deleteById(courseId);
         return course;
-    }
-
-    public void indexData() {
-        final CsvFileParser<Course> courseCsvFileParser = new CsvFileParser<Course>(Course.class);
-        List<Course> courseCsvData = courseCsvFileParser.parse("src/main/resources/static/courses.csv");
-        esCourseRepository.saveAll(courseCsvData);
     }
 }

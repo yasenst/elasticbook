@@ -30,7 +30,7 @@ public class User implements Serializable {
         booksOwned = new ArrayList<>();
     }
 
-    public User(final String userId, final String username) {
+    public User(final Long userId, final String username) {
         this.userId = userId;
         this.username = username;
         booksOwned = new ArrayList<>();
@@ -41,7 +41,7 @@ public class User implements Serializable {
 
     @JsonProperty("userId")
     @Field(name = "user_id")
-    private String userId;
+    private Long userId;
 
     @JsonProperty("username")
     private String username;

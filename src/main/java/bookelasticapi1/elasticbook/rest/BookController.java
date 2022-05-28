@@ -10,6 +10,7 @@ import bookelasticapi1.elasticbook.service.elastic.ElasticsearchBookService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,6 +41,13 @@ public class BookController {
         this.sqlBookService = sqlBookService;
     }
 
+    @GetMapping("")
+    public ResponseEntity<Page<Book>> getALl(@RequestParam(defaultValue = "0") int page,
+                                             @RequestParam(defaultValue = "10") int size) {
+        final Page<Book> books = elasticsearchBookService.findAll(PageRequest.of(page, size));
+        return new ResponseEntity<>(books, HttpStatus.OK);
+    }
+
     @GetMapping("/{bookId}")
     public ResponseEntity<Book> getById(@PathVariable final String bookId) {
         try {
@@ -57,6 +66,20 @@ public class BookController {
         final Book book = this.elasticsearchBookService.save(bookDto);
         this.sqlBookService.save(book);
         return new ResponseEntity<>(book, HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{bookId}")
+    public ResponseEntity<Book> updateBook(@PathVariable final String bookId, @RequestBody final BookDto bookDto) {
+        try {
+            final Book esBook = this.elasticsearchBookService.update(bookId, bookDto);
+            this.sqlBookService.update(bookId, bookDto);
+            return new ResponseEntity<>(esBook, HttpStatus.OK);
+        } catch (ElkException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -93,7 +116,7 @@ public class BookController {
         }
     }
 
-    @GetMapping("/{bookId}/more")
+    @GetMapping("/{bookId}/similar")
     public ResponseEntity<List<Book>> getMoreLikeThis(@PathVariable final String bookId) {
         try {
             final List<Book> books = elasticsearchBookService.moreLikeThis(bookId);
@@ -105,8 +128,12 @@ public class BookController {
 
     @GetMapping("/search")
     public ResponseEntity<List<Book>> searchBooks(@RequestParam String text) {
-        final List<Book> books = elasticsearchBookService.multiMatchSearchQuery(text);
-        return new ResponseEntity<>(books, HttpStatus.OK);
+        try {
+            final List<Book> books = elasticsearchBookService.multiMatchSearchQuery(text);
+            return new ResponseEntity<>(books, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @PostMapping("/recommended")
@@ -119,8 +146,8 @@ public class BookController {
         }
     }
 
-    @PostMapping("/aggregated")
-    public ResponseEntity<List<Book>> getBooksOwnersAlsoLike(@RequestBody String bookId) {
+    @GetMapping("/{bookId}/aggregated")
+    public ResponseEntity<List<Book>> getBooksOwnersAlsoLike(@PathVariable String bookId) {
         try {
             final List<Book> books = elasticsearchBookService.getBooksOwnersAlsoLike(bookId);
             return new ResponseEntity<>(books, HttpStatus.OK);

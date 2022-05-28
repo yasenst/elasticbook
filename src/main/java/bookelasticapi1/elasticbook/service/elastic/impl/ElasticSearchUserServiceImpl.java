@@ -3,7 +3,6 @@ package bookelasticapi1.elasticbook.service.elastic.impl;
 import bookelasticapi1.elasticbook.model.elastic.User;
 import bookelasticapi1.elasticbook.repository.elastic.ElasticsearchUserRepository;
 import bookelasticapi1.elasticbook.service.elastic.ElasticsearchUserService;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,24 +10,22 @@ import org.springframework.stereotype.Service;
 public class ElasticSearchUserServiceImpl implements ElasticsearchUserService {
 
     private final ElasticsearchUserRepository userRepository;
-    private final RestHighLevelClient client;
 
     @Autowired
-    public ElasticSearchUserServiceImpl(final ElasticsearchUserRepository userRepository, final RestHighLevelClient client) {
+    public ElasticSearchUserServiceImpl(final ElasticsearchUserRepository userRepository) {
         this.userRepository = userRepository;
-        this.client = client;
     }
 
     @Override
-    public User addBook(String username, String bookTitle) {
-        final User document = userRepository.findByUsername(username);
+    public User addBook(Long userId, String bookTitle) {
+        final User document = userRepository.findByUserId(userId);
         document.addBook(bookTitle);
         return userRepository.save(document);
     }
 
     @Override
-    public User removeBook(String username, String bookTitle) {
-        final User document = userRepository.findByUsername(username);
+    public User removeBook(Long userId, String bookTitle) {
+        final User document = userRepository.findByUserId(userId);
         document.removeBook(bookTitle);
         return userRepository.save(document);
     }

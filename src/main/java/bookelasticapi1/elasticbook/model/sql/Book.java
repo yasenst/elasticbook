@@ -9,12 +9,8 @@ import javax.persistence.Id;
 import javax.persistence.ManyToMany;
 import javax.persistence.Table;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.GenericGenerator;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
 
 @Entity
 @Table(name = "books")
@@ -23,7 +19,11 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 public class Book {
     @Id
     @Column(name = "book_id")
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "es_book_id", unique = true)
+    private String esBookId;
 
     @Column
     private String title;

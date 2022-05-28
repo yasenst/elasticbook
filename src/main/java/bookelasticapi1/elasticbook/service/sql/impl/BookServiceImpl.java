@@ -1,5 +1,6 @@
 package bookelasticapi1.elasticbook.service.sql.impl;
 
+import bookelasticapi1.elasticbook.dto.BookDto;
 import bookelasticapi1.elasticbook.exception.EntityNotFoundException;
 import bookelasticapi1.elasticbook.model.sql.Book;
 import bookelasticapi1.elasticbook.repository.sql.BookRepository;
@@ -19,14 +20,15 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public Book getById(String bookId) {
-        return bookRepository.findById(bookId)
+        return bookRepository.findByEsBookId(bookId)
                 .orElseThrow(() -> new EntityNotFoundException("Book with ID=" + bookId + " was not found in the database!"));
     }
 
     @Override
     public Book save(bookelasticapi1.elasticbook.model.elastic.Book esBook) {
         Book sqlBook = new Book();
-        sqlBook.setId(esBook.getId());
+
+        sqlBook.setEsBookId(esBook.getId());
         sqlBook.setAuthor(esBook.getAuthor());
         sqlBook.setTitle(esBook.getTitle());
         sqlBook.setDescription(esBook.getDescription());
@@ -36,7 +38,20 @@ public class BookServiceImpl implements BookService {
     }
 
     @Override
+    public Book update(String bookId, BookDto bookDto) {
+        final Book bookToUpdate = getById(bookId);
+
+        bookToUpdate.setAuthor(bookDto.getAuthor());
+        bookToUpdate.setTitle(bookDto.getTitle());
+        bookToUpdate.setDescription(bookDto.getDescription());
+        bookToUpdate.setSubject(bookDto.getSubject());
+
+        return bookRepository.save(bookToUpdate);
+    }
+
+    @Override
     public void deleteById(String bookId) {
-        bookRepository.deleteById(bookId);
+        Book book = getById(bookId);
+        bookRepository.deleteById(book.getId());
     }
 }

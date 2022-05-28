@@ -1,11 +1,10 @@
 package bookelasticapi1.elasticbook.rest;
 
-import java.io.IOException;
-import java.util.List;
 import java.util.Set;
 
 import bookelasticapi1.elasticbook.exception.EntityNotFoundException;
 import bookelasticapi1.elasticbook.model.sql.Book;
+import bookelasticapi1.elasticbook.model.sql.User;
 import bookelasticapi1.elasticbook.service.elastic.ElasticsearchUserService;
 
 import bookelasticapi1.elasticbook.service.sql.UserService;
@@ -23,37 +22,34 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/users/books")
+@RequestMapping("/api/users")
 public class UserBooksController {
 
     private final ElasticsearchUserService elasticsearchUserService;
 
-    private final UserService sqlUserService;
+    private final UserService userService;
 
     @Autowired
     public UserBooksController(final ElasticsearchUserService elasticsearchUserService,
-                               final UserService sqlUserService) {
+                               final UserService userService) {
         this.elasticsearchUserService = elasticsearchUserService;
-        this.sqlUserService = sqlUserService;
+        this.userService = userService;
     }
 
-    @PreAuthorize("hasRole('USER')")
-    @GetMapping("")
-    public ResponseEntity<Set<Book>> getBooksForUser(Authentication authentication) {
-        String username = authentication.getName();
-        Set<Book> books = sqlUserService.getBooks(username);
+    @PreAuthorize("hasRole('ADMIN') or @authService.hasAccess(authentication, #userId)")
+    @GetMapping("/{userId}/books")
+    public ResponseEntity<Set<Book>> getBooksForUser(@PathVariable long userId) {
+        Set<Book> books = userService.getBooks(userId);
         return new ResponseEntity<>(books, HttpStatus.OK);
     }
 
 
-    @PreAuthorize("hasRole('USER')")
-    @PostMapping("")
-    public ResponseEntity<Book> addBookToUser(Authentication authentication, @RequestBody String bookId) {
+    @PreAuthorize("isAuthenticated() and @authService.hasAccess(authentication, #userId)")
+    @PostMapping("/{userId}/books/{bookId}")
+    public ResponseEntity<Book> addBookToUser(@PathVariable long userId, @PathVariable String bookId) {
         try {
-            String username = authentication.getName();
-
-            final Book book = sqlUserService.addBook(username, bookId);
-            elasticsearchUserService.addBook(username, book.getTitle());
+            final Book book = userService.addBook(userId, bookId);
+            elasticsearchUserService.addBook(userId, book.getTitle());
 
             return new ResponseEntity<>(book, HttpStatus.OK);
         } catch (EntityNotFoundException e) {
@@ -61,14 +57,12 @@ public class UserBooksController {
         }
     }
 
-    @PreAuthorize("hasRole('USER')")
-    @DeleteMapping("/{bookId}")
-    public ResponseEntity<Book> removeBookFromUser(Authentication authentication, @PathVariable final String bookId) {
+    @PreAuthorize("isAuthenticated() and @authService.hasAccess(authentication, #userId)")
+    @DeleteMapping("/{userId}/books/{bookId}")
+    public ResponseEntity<Book> removeBookFromUser(@PathVariable long userId, @PathVariable String bookId) {
         try {
-            String username = authentication.getName();
-
-            final Book book = sqlUserService.removeBook(username, bookId);
-            elasticsearchUserService.removeBook(username, book.getTitle());
+            final Book book = userService.removeBook(userId, bookId);
+            elasticsearchUserService.removeBook(userId, book.getTitle());
 
             return new ResponseEntity<>(book, HttpStatus.OK);
         } catch (EntityNotFoundException e) {
@@ -76,10 +70,9 @@ public class UserBooksController {
         }
     }
 
-    @PreAuthorize("hasRole('USER')")
-    @PostMapping("/ownership")
-    public boolean userOwnsBook(Authentication authentication, @RequestBody String bookId) {
-        String username = authentication.getName();
-        return sqlUserService.hasBook(username, bookId);
+    @PreAuthorize("hasRole('ADMIN') or @authService.hasAccess(authentication, #userId)")
+    @GetMapping("/{userId}/books/{bookId}/ownership")
+    public boolean userOwnsBook(@PathVariable long userId, @PathVariable String bookId) {
+        return userService.hasBook(userId, bookId);
     }
 }

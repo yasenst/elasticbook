@@ -11,7 +11,8 @@ import lombok.Setter;
 @Setter
 public class AuthUser {
     private String token;
-    private String id;
+    private Long id;
     private String username;
+    private String fullName;
     private List<String> roles;
 }

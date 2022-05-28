@@ -12,6 +12,8 @@ import bookelasticapi1.elasticbook.service.elastic.ElasticsearchCourseService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,8 +34,15 @@ public class CourseController {
     private final ElasticsearchCourseService elasticsearchCourseService;
 
     @Autowired
-    public CourseController(ElasticsearchCourseService elasticsearchCourseService) {
+    public CourseController(final ElasticsearchCourseService elasticsearchCourseService) {
         this.elasticsearchCourseService = elasticsearchCourseService;
+    }
+
+    @GetMapping("")
+    public ResponseEntity<Page<Course>> getAll(@RequestParam(defaultValue = "0") int page,
+                                                @RequestParam(defaultValue = "5") int size) {
+        final Page<Course> courses = elasticsearchCourseService.findAll(PageRequest.of(page, size));
+        return new ResponseEntity<>(courses, HttpStatus.OK);
     }
 
     @GetMapping("/{courseId}")
@@ -85,12 +94,19 @@ public class CourseController {
             return new ResponseEntity<>(books, HttpStatus.OK);
         } catch (IOException ioe) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
 
     @GetMapping("/search")
     public ResponseEntity<List<Course>> searchCourses(@RequestParam String text) {
-        final List<Course> courses = elasticsearchCourseService.multiMatchSearchQuery(text);
-        return new ResponseEntity<>(courses, HttpStatus.OK);
+        try {
+            final List<Course> courses = elasticsearchCourseService.multiMatchSearchQuery(text);
+            return new ResponseEntity<>(courses, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
     }
 }

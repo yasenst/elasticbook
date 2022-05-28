@@ -7,8 +7,8 @@ import bookelasticapi1.elasticbook.model.elastic.User;
 import bookelasticapi1.elasticbook.model.sql.Book;
 
 public interface ElasticsearchUserService {
-    User addBook(String username, String bookTitle);
-    User removeBook(String username, String bookTitle);
+    User addBook(Long userId, String bookTitle);
+    User removeBook(Long userId, String bookTitle);
     //List<Book> getBooksOwnersAlsoLike(String bookTitle) throws IOException;
     User save(bookelasticapi1.elasticbook.model.sql.User sqlUser);
 }

@@ -12,10 +12,11 @@ public interface UserService {
     User save(User user);
     List<User> findAll();
     User findByUsername(String username);
+    User findById(Long userId);
     boolean existsByUsername(String username);
 
-    Set<Book> getBooks(String username);
-    Book addBook(String username,String bookId);
-    Book removeBook(String username,String bookId);
-    boolean hasBook(String username, String bookId);
+    Set<Book> getBooks(long userId);
+    Book addBook(Long userId,String bookId);
+    Book removeBook(Long userId,String bookId);
+    boolean hasBook(Long userId, String bookId);
 }

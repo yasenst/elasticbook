@@ -6,5 +6,6 @@ import bookelasticapi1.elasticbook.model.sql.Book;
 public interface BookService {
     Book getById(String bookId);
     Book save(bookelasticapi1.elasticbook.model.elastic.Book esBook);
+    Book update(String bookId, BookDto bookDto);
     void deleteById(String bookId);
 }

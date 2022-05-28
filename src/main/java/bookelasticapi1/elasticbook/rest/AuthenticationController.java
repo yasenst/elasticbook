@@ -11,9 +11,9 @@ import bookelasticapi1.elasticbook.model.sql.User;
 import bookelasticapi1.elasticbook.service.elastic.ElasticsearchUserService;
 import bookelasticapi1.elasticbook.service.sql.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -66,6 +66,7 @@ public class AuthenticationController {
         return ResponseEntity.ok(new AuthUser(token,
                                 user.getId(),
                                 user.getUsername(),
+                                user.getFirstName() + " " + user.getLastName(),
                                 roles));
     }
 
@@ -74,7 +75,7 @@ public class AuthenticationController {
         final String username = user.getUsername();
         if (userService.existsByUsername(username)) {
             return ResponseEntity
-                    .badRequest()
+                    .status(HttpStatus.CONFLICT)
                     .body("Error: Username is already taken!");
         }
 
@@ -82,11 +83,5 @@ public class AuthenticationController {
         elasticsearchUserService.save(newUser);
 
         return ResponseEntity.ok("User registered successfully!");
-    }
-
-    @PreAuthorize("hasRole('USER')")
-    @PostMapping("/userping")
-    public String userPing(){
-        return "Users can read this";
     }
 }

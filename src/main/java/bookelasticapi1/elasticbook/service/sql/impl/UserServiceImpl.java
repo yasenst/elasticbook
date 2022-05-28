@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import bookelasticapi1.elasticbook.dto.UserDto;
+import bookelasticapi1.elasticbook.exception.EntityNotFoundException;
 import bookelasticapi1.elasticbook.model.sql.Book;
 import bookelasticapi1.elasticbook.model.sql.Role;
 import bookelasticapi1.elasticbook.model.sql.User;
@@ -53,20 +54,26 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User findById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User with ID=" + userId + " was not found in the database!"));
+    }
+
+    @Override
     public boolean existsByUsername(String username) {
         return userRepository.existsByUsername(username);
     }
 
     @Override
-    public Set<Book> getBooks(String username) {
-        final User user = findByUsername(username);
+    public Set<Book> getBooks(long userId) {
+        final User user = findById(userId);
 
         return user.getBooks();
     }
 
     @Override
-    public Book addBook(String username, String bookId) {
-        final User user = findByUsername(username);
+    public Book addBook(Long userId, String bookId) {
+        final User user = findById(userId);
         final Book book = bookService.getById(bookId);
 
         user.addBook(book);
@@ -76,8 +83,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Book removeBook(String username, String bookId) {
-        final User user = findByUsername(username);
+    public Book removeBook(Long userId, String bookId) {
+        final User user = findById(userId);
         final Book book = bookService.getById(bookId);
 
         user.removeBook(book);
@@ -87,8 +94,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean hasBook(String username, String bookId) {
-        final User user = findByUsername(username);
+    public boolean hasBook(Long userId, String bookId) {
+        final User user = findById(userId);
         final Book book = bookService.getById(bookId);
 
         return user.hasBook(book);
@@ -99,6 +106,8 @@ public class UserServiceImpl implements UserService {
         User newUser = new User();
         newUser.setUsername(userDto.getUsername());
         newUser.setPassword(encoder.encode(userDto.getPassword()));
+        newUser.setFirstName(userDto.getFirstName());
+        newUser.setLastName(userDto.getLastName());
 
         Role role = roleService.findByName("USER");
         Set<Role> roleSet = new HashSet<>();

@@ -9,7 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface ElasticsearchBookService {
     Book findById(String bookId);
-    Iterable<Book> findAll();
+    Page<Book> findAll(Pageable pageable);
     Page<Book> findByAuthor(String author, Pageable pageable);
     Page<Book> findByTitle(String title, Pageable pageable);
     Page<Book> findBySubject(String subject, Pageable pageable);
@@ -18,15 +18,12 @@ public interface ElasticsearchBookService {
 
     List<Book> getSampleBooks() throws IOException;
     List<Book> moreLikeThis(String bookId) throws IOException;
-    List<Book> getRecommendationsList(final List<String> bookIdList) throws IOException;
+    List<Book> getRecommendationsList(List<String> bookIdList) throws IOException;
     List<Book> getBooksOwnersAlsoLike(String bookTitle) throws IOException;
 
-    List<Book> multiMatchSearchQuery(String text);
+    List<Book> multiMatchSearchQuery(String text) throws IOException;
 
     Book save(BookDto bookDto);
-    Book delete(final String bookId);
-
-    void populateMySQL();
-    void indexData();
-
+    Book update(String bookId, BookDto bookDto);
+    Book delete(String bookId);
 }

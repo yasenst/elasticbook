@@ -24,11 +24,11 @@ public class Book implements Serializable {
     private String id;
 
     @JsonProperty("title")
-    @Field(type = FieldType.Text, fielddata = true)
+    //@Field(type = FieldType.Text, fielddata = true)
     private String title;
 
     @JsonProperty("description")
-    @Field(type = FieldType.Text, fielddata = true)
+    //@Field(type = FieldType.Text, fielddata = true)
     private String description;
 
     @JsonProperty("author")

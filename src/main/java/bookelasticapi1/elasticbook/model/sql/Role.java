@@ -19,7 +19,8 @@ import lombok.Setter;
 public class Role {
     @Id
     @Column(name = "role_id")
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
     @Column
     private String name;
